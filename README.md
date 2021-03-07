@@ -2,6 +2,10 @@
 ## Instructions to run.
 
 ```
+ mvn clean package
+```
+
+```
  docker build -t coverrate-docker .
 ```
 
