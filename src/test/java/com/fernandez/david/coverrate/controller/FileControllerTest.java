@@ -1,15 +1,13 @@
 package com.fernandez.david.coverrate.controller;
 
 
+import com.fernandez.david.coverrate.exception.CoverrateException;
 import com.fernandez.david.coverrate.model.ResponseFile;
 import com.fernandez.david.coverrate.service.FileCompress;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -23,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.openMocks;
 
@@ -38,10 +37,10 @@ public class FileControllerTest {
 
     private FileController fileController;
 
-    @BeforeEach
-    void setUp() {
+    @Before
+    public void setUp() throws IOException {
         openMocks(this);
-        responseFile = buildResponseFile();
+        responseFile = buildResponseFile(File.createTempFile("test", null));
         mockFiles = buildMockFiles();
 
         fileController = new FileController(fileCompress);
@@ -51,14 +50,28 @@ public class FileControllerTest {
     public void uploadMultipleFilesTest() {
         when(fileCompress.compressFiles(mockFiles, "coverrateTest.zip")).thenReturn(responseFile);
 
-        ResponseEntity<ResponseFile> resourceResponseEntity = fileController.uploadMultipleFiles(mockFiles);
+        ResponseEntity<Resource> resourceResponseEntity = fileController.uploadMultipleFiles(mockFiles);
 
         assertEquals(HttpStatus.OK, resourceResponseEntity.getStatusCode());
-        assertEquals(responseFile, resourceResponseEntity.getBody());
+        assertNotNull(responseFile.getFile());
     }
 
-    private ResponseFile buildResponseFile() {
-        return new ResponseFile(new File("empty.txt"));
+    @Test(expected = CoverrateException.class)
+    public void fileCompressThrowsExceptionTest() {
+        when(fileCompress.compressFiles(mockFiles, "coverrateTest.zip")).thenThrow(new CoverrateException("error"));
+
+        fileController.uploadMultipleFiles(mockFiles);
+    }
+
+    @Test(expected = CoverrateException.class)
+    public void responseFileThrowsExceptionTest() {
+        when(fileCompress.compressFiles(mockFiles, "coverrateTest.zip")).thenReturn(buildResponseFile(new File("notExisting.txt")));
+
+        fileController.uploadMultipleFiles(mockFiles);
+    }
+
+    private ResponseFile buildResponseFile(File file) {
+        return new ResponseFile(file);
     }
 
     private List<MultipartFile> buildMockFiles() {
